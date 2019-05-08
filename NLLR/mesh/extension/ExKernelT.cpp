@@ -1,6 +1,7 @@
 ﻿
+#define CRT_SECURE_NO_WARNINGS
 #include "ExKernelT.h"
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include "algorithm"
 #include <Eigen/Dense>
@@ -12,6 +13,7 @@ using namespace std;
 
 
 namespace MeshN { 
+
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Implementation of member functions of ExKernelT
@@ -44,16 +46,16 @@ namespace MeshN {
 	////////////////////////////////////////////////////////////////////////////////
 	template <class ExItems>
 	void ExKernelT<ExItems>::update_flag(void){
-		FacetIterator fi = facet_begin();
-		for (; fi != facet_end(); ++fi) {
+		FacetIterator fi = Kernel::facet_begin();
+		for (; fi != Kernel::facet_end(); ++fi) {
 			if (fi->status_.is_deleted()) continue;
 
 			assert(fi->halfedge_handle_.is_valid());
 			fi->flag_ = false;
 		}
 
-		VertexIterator vi = vertex_begin();
-		for (; vi != vertex_end(); ++vi) {
+		VertexIterator vi = Kernel::vertex_begin();
+		for (; vi != Kernel::vertex_end(); ++vi) {
 			if (vi->status_.is_deleted()) continue;
 
 			assert(vi->halfedge_handle_.is_valid());
@@ -64,12 +66,12 @@ namespace MeshN {
 	template<class ExItems>
 	void
 		ExKernelT<ExItems>::get_original_vertex(){
-			VertexIterator vi(vertex_begin());
-			for (; vi != vertex_end(); vi++){
+			VertexIterator vi(Kernel::vertex_begin());
+			for (; vi != Kernel::vertex_end(); vi++){
 
 				HalfedgeHandle& hh = vi->halfedge_handle_;
-				VertexHandle&   vh = vertex_handle(hh);
-				original_vertices_.push_back(vertex_ref(vh));
+				VertexHandle&   vh = this->vertex_handle(hh);
+				Kernel::original_vertices_.push_back(this->vertex_ref(vh));
 			}
 
 		}
@@ -78,12 +80,12 @@ namespace MeshN {
 	template<class ExItems>
 	void
 		ExKernelT<ExItems>::get_original_facet(){
-			FacetIterator fi(facet_begin());
-			for (; fi < facet_end(); fi++){
+			FacetIterator fi(Kernel::facet_begin());
+			for (; fi < Kernel::facet_end(); fi++){
 
 				HalfedgeHandle& hh = fi->halfedge_handle_;
-				FacetHandle&   fh = facet_handle(hh);
-				original_facets_.push_back(facet_ref(fh));
+				FacetHandle&   fh = this->facet_handle(hh);
+				Kernel::original_facets_.push_back(this->facet_ref(fh));
 			}
 
 		}
@@ -92,11 +94,12 @@ namespace MeshN {
 	template<class ExItems>
 	void ExKernelT<ExItems>::patchNormalAlignment(std::vector<Normal> guidanceNormals, int K)
 	{
-		VertexIterator vi = vertex_begin();
-		for (vi; vi < vertex_end(); vi++)
+		VertexIterator vi = Kernel::vertex_begin();
+		for (vi; vi < Kernel::vertex_end(); vi++)
 		{
 			vector<VertexHandle> neighborVertices;
-			getNeighborVertices(vertex_handle(vi->halfedge_handle_), K, neighborVertices);
+			auto v = this->vertex_handle(vi->halfedge_handle_);
+			getNeighborVertices(v, K, neighborVertices);
 			//////////////////////////////////////////////////////////////////////////////////
 			MatrixXd neighborVertexNormals;
 			neighborVertexNormals.setZero(neighborVertices.size(), 3);
@@ -282,8 +285,8 @@ namespace MeshN {
 	template<class ExItems>
 	void ExKernelT<ExItems>::getRegionNormalCovarianceMat_new(std::vector<Normal> guidanceNormals, int K)
 	{
-		VertexIterator vi = vertex_begin();
-		for (vi; vi < vertex_end(); vi++)
+		VertexIterator vi = Kernel::vertex_begin();
+		for (vi; vi < Kernel::vertex_end(); vi++)
 		{
 			MatrixXd patch_aligned = (*vi).patch_aligned_;
 			double sumNx = 0; double sumNy = 0; double sumNz = 0;
@@ -338,8 +341,8 @@ namespace MeshN {
 	template<class ExItems>
 	void ExKernelT<ExItems>::findSimilarPatch3(int _candidateSize, int _t) 
 	{
-		VertexIterator vi = vertex_begin();
-		for (; vi != vertex_end(); vi++)
+		VertexIterator vi = Kernel::vertex_begin();
+		for (; vi != Kernel::vertex_end(); vi++)
 		{
 			MatrixXd refCoMatrix;
 			refCoMatrix = (*vi).coMatrix_;
@@ -348,16 +351,16 @@ namespace MeshN {
 			refGuiCoMatrix = (*vi).guiCoMatrix_;
 
 			vector<VertexHandle> NeighborRing;
-			getNeighborRing(vertex_handle(vi->halfedge_handle_), _candidateSize, NeighborRing);
+			getNeighborRing(this->vertex_handle(vi->halfedge_handle_), _candidateSize, NeighborRing);
 
 			vector<vector<double> > distanceMatrix(NeighborRing.size(), vector<double>(2));
 			for (int i = 0; i < NeighborRing.size(); i++)
 			{
 				MatrixXd candidateCoMatrix;
-				candidateCoMatrix = vertex_ref(NeighborRing[i]).coMatrix_;
+				candidateCoMatrix =this->vertex_ref(NeighborRing[i]).coMatrix_;
 
 				MatrixXd candidateGuiCoMatrix;
-				candidateGuiCoMatrix = vertex_ref(NeighborRing[i]).guiCoMatrix_;
+				candidateGuiCoMatrix = this->vertex_ref(NeighborRing[i]).guiCoMatrix_;
 
 				MatrixXd disMatrix = refCoMatrix - candidateCoMatrix;
 				MatrixXd disMatrix2 = disMatrix.array()*disMatrix.array();
@@ -384,13 +387,13 @@ namespace MeshN {
 	template<class ExItems>
 	double ExKernelT<ExItems>::computeSig(double nsig) {
 
-		VertexIterator vi = vertex_begin();
+		VertexIterator vi = Kernel::vertex_begin();
 		double meanDifFaceNormal = 0.0;
-		FacetIterator fi = facet_begin();
+		FacetIterator fi = Kernel::facet_begin();
 		int i = 0;
-		for (; fi != facet_end(); ++fi) {
-			FacetHandle _fh = facet_handle(fi->halfedge_handle_);
-			Normal normalDif = facet_ref(_fh).normal_ - facet_ref(_fh).oriNormal_;
+		for (; fi != Kernel::facet_end(); ++fi) {
+			FacetHandle _fh = this->facet_handle(fi->halfedge_handle_);
+			Normal normalDif = this->facet_ref(_fh).normal_ - this->facet_ref(_fh).oriNormal_;
 			meanDifFaceNormal = meanDifFaceNormal + normalDif[0] * normalDif[0] + normalDif[1] * normalDif[1] + normalDif[2] * normalDif[2];
 			i++;
 			
@@ -403,14 +406,14 @@ namespace MeshN {
 	//////////////////////////////////////////////////////////////////////////////
 	template<class ExItems>
 	void ExKernelT<ExItems>::updateNormalIterativeRegularization(double w) {
-		FacetIterator fi = facet_begin();
-		for (; fi != facet_end(); ++fi) {
-			FacetHandle _fh = facet_handle(fi->halfedge_handle_);
-			Normal nd = (facet_ref(_fh).oriNormal_ - facet_ref(_fh).normal_);
+		FacetIterator fi = Kernel::facet_begin();
+		for (; fi != Kernel::facet_end(); ++fi) {
+			FacetHandle _fh = this->facet_handle(fi->halfedge_handle_);
+			Normal nd = (this->facet_ref(_fh).oriNormal_ - this->facet_ref(_fh).normal_);
 			nd[0] = w*nd[0];
 			nd[1] = w*nd[1];
 			nd[2] = w*nd[2];
-			fi->normal_ = facet_ref(_fh).normal_ + nd;
+			fi->normal_ = this->facet_ref(_fh).normal_ + nd;
 		}
 	}
 
@@ -420,19 +423,19 @@ namespace MeshN {
 	{
 		int orderMethod = 3; // 1: random ordering; 2: ring-based random; 3: ring-based NPC
 		
-		VertexIterator vi = vertex_begin();
-		for (; vi != vertex_end(); vi++)
+		VertexIterator vi = Kernel::vertex_begin();
+		for (; vi != Kernel::vertex_end(); vi++)
 		{
 			// low-rank matrix recovery
 			int maxRows = 0;
 			HalfedgeHandle hh = vi->halfedge_handle_;
-			VertexHandle vh = vertex_handle(vi->halfedge_handle_);
+			VertexHandle vh = this->vertex_handle(vi->halfedge_handle_);
 		
 			maxRows = K;
 			MatrixXd Bx, By, Bz; 
-			Bx.setZero(maxRows, _t); //Bx: the x coordinate
-			By.setZero(maxRows, _t); //By: the y coordinate
-			Bz.setZero(maxRows, _t); //Bz: the z coordinate
+			Bx.setZero(maxRows, _t); //Bx: the x this->coordinate
+			By.setZero(maxRows, _t); //By: the y this->coordinate
+			Bz.setZero(maxRows, _t); //Bz: the z this->coordinate
 
 			////////////// construct NPG matrix //////////////////
 			vector<vector<VertexHandle> >vv(K, vector<VertexHandle>(_t)); //NPG VertexHandle matrix
@@ -442,7 +445,7 @@ namespace MeshN {
 				for (int i = 0; i < _t; i++)
 				{
 					vector<VertexHandle> vii;
-					int dix = vertex_ref(vh).similarIdx_[i];
+					int dix = this->vertex_ref(vh).similarIdx_[i];
 					getNeighborVertices(VertexHandle(dix), K, vii);
 					for (int j = 0; j < K; j++)
 					{
@@ -452,8 +455,8 @@ namespace MeshN {
 
 				for (int i = 0; i < _t; i++)
 				{
-					int dix = vertex_ref(vh).similarIdx_[i];
-					MatrixXd patch_aligned = vertex_ref(VertexHandle(dix)).patch_aligned_;
+					int dix = this->vertex_ref(vh).similarIdx_[i];
+					MatrixXd patch_aligned = this->vertex_ref(VertexHandle(dix)).patch_aligned_;
 					for (int j = 0; j < K; j++)
 					{
 						Bx(j, i) = patch_aligned(j, 0);
@@ -499,7 +502,7 @@ namespace MeshN {
 				{
 					vector<VertexHandle> vii;
 					vector<int> vii_ringIdx;
-					int dix = vertex_ref(vh).similarIdx_[i];
+					int dix = this->vertex_ref(vh).similarIdx_[i];
 					getNeighborVertices_withRingIndex(VertexHandle(dix), K, vii, vii_ringIdx);
 					for (int j = 0; j < K; j++)
 					{
@@ -511,8 +514,8 @@ namespace MeshN {
 
 				for (int i = 0; i < _t; i++)
 				{
-					int dix = vertex_ref(vh).similarIdx_[i];
-					MatrixXd patch_aligned = vertex_ref(VertexHandle(dix)).patch_aligned_;
+					int dix = this->vertex_ref(vh).similarIdx_[i];
+					MatrixXd patch_aligned = this->vertex_ref(VertexHandle(dix)).patch_aligned_;
 					for (int j = 0; j < K; j++)
 					{
 						Bx(j, i) = patch_aligned(j, 0);
@@ -575,7 +578,7 @@ namespace MeshN {
 				for (int i = 0; i < _t; i++)
 				{
 					vector<VertexHandle> vii;
-					int dix = vertex_ref(vh).similarIdx_[i];
+					int dix = this->vertex_ref(vh).similarIdx_[i];
 					getNeighborVertices(VertexHandle(dix), K, vii);
 					for (int j = 0; j < K; j++)
 					{
@@ -585,8 +588,8 @@ namespace MeshN {
 
 				for (int i = 0; i < _t; i++)
 				{
-					int dix = vertex_ref(vh).similarIdx_[i];
-					MatrixXd patch_aligned = vertex_ref(VertexHandle(dix)).patch_aligned_;
+					int dix = this->vertex_ref(vh).similarIdx_[i];
+					MatrixXd patch_aligned = this->vertex_ref(VertexHandle(dix)).patch_aligned_;
 					for (int j = 0; j < K; j++)
 					{
 						Bx(j, i) = patch_aligned(j, 0);
@@ -612,8 +615,8 @@ namespace MeshN {
 			Xx_recover.setZero(K, _t); Xy_recover.setZero(K, _t); Xz_recover.setZero(K, _t);
 			for (int i = 0; i < _t; i++)
 			{
-				int dix = vertex_ref(vh).similarIdx_[i];
-				MatrixXd rotMat = vertex_ref(VertexHandle(dix)).rotMat_;
+				int dix = this->vertex_ref(vh).similarIdx_[i];
+				MatrixXd rotMat = this->vertex_ref(VertexHandle(dix)).rotMat_;
 				MatrixXd rotMat_inverse = rotMat.transpose();  //transpose is equal to inverse
 				MatrixXd mat;
 				mat.setZero(K, 3);
@@ -639,8 +642,8 @@ namespace MeshN {
 				{
 					MathN::Vec3f newNor = MathN::Vec3f(Xx_recover(j, i), Xy_recover(j, i), Xz_recover(j, i));
 					MathN::Vec3f newWei = MathN::Vec3f(Wx(j, i), Wy(j, i), Wz(j, i));
-					vertex_ref(vv[j][i]).weights_ += newWei;
-					vertex_ref(vv[j][i]).sumNormal_ += newNor;
+					this->vertex_ref(vv[j][i]).weights_ += newWei;
+					this->vertex_ref(vv[j][i]).sumNormal_ += newNor;
 				}
 			}
 
@@ -927,26 +930,26 @@ namespace MeshN {
 	template<class ExItems>
 	void ExKernelT<ExItems>::compute_normals_NLLR() {
 		//update vertex normals
-		VertexIterator vi = vertex_begin();
-		for (; vi != vertex_end(); ++vi)
+		VertexIterator vi = Kernel::vertex_begin();
+		for (; vi != Kernel::vertex_end(); ++vi)
 		{
 			HalfedgeHandle hh = vi->halfedge_handle_;
-			VertexHandle vh = vertex_handle(vi->halfedge_handle_);
-			vertex_ref(vh).normal_ = ((vertex_ref(vh).sumNormal_).normalize() / (vertex_ref(vh).weights_)).normalize();
+			VertexHandle vh = this->vertex_handle(vi->halfedge_handle_);
+			this->vertex_ref(vh).normal_ = ((this->vertex_ref(vh).sumNormal_).normalize() / (this->vertex_ref(vh).weights_)).normalize();
 		}
 
 		//update face normals based on the estimated vertex normals
-		FacetIterator fi = facet_begin();
-		for (; fi != facet_end(); ++fi) {
+		FacetIterator fi = Kernel::facet_begin();
+		for (; fi != Kernel::facet_end(); ++fi) {
 			if (fi->status_.is_deleted()) continue;
-			FacetHandle _fh = facet_handle(fi->halfedge_handle_);
-			const HalfedgeHandle&   hh = halfedge_handle(_fh);
-			const HalfedgeHandle& p_hh = prev_halfedge_handle(hh);
-			const HalfedgeHandle& n_hh = next_halfedge_handle(hh);
+			FacetHandle _fh = this->facet_handle(fi->halfedge_handle_);
+			const HalfedgeHandle&   hh = this->halfedge_handle(_fh);
+			const HalfedgeHandle& p_hh = this->prev_halfedge_handle(hh);
+			const HalfedgeHandle& n_hh = this->next_halfedge_handle(hh);
 
-			const Normal& cd0 = vertex_ref(vertex_handle(hh)).normal_;
-			const Normal& cd1 = vertex_ref(vertex_handle(p_hh)).normal_;
-			const Normal& cd2 = vertex_ref(vertex_handle(n_hh)).normal_;
+			const Normal& cd0 = this->vertex_ref(this->vertex_handle(hh)).normal_;
+			const Normal& cd1 = this->vertex_ref(this->vertex_handle(p_hh)).normal_;
+			const Normal& cd2 = this->vertex_ref(this->vertex_handle(n_hh)).normal_;
 			fi->normal_ = (cd0 + cd1 + cd2) / 3;
 			if (fi->normal_.length() > 1E-7)
 			{
@@ -966,7 +969,7 @@ namespace MeshN {
 		halfEdgeVec[2] = next_halfedge_handle(halfEdgeVec[1]);
 
 		for (int i = 0; i < 3; ++i){
-			VertexHandle currentVexHandle = vertex_handle(halfEdgeVec[i]);
+			VertexHandle currentVexHandle = this->vertex_handle(halfEdgeVec[i]);
 			_vhs[i] = currentVexHandle;
 		}
 	}
@@ -980,8 +983,8 @@ namespace MeshN {
 		halfEdgeVec[2] = next_halfedge_handle(halfEdgeVec[1]);
 
 		for (int i = 0; i < 3; ++i){
-			VertexHandle currentVexHandle = vertex_handle(halfEdgeVec[i]);
-			_vhs[i] = coord(currentVexHandle);
+			VertexHandle currentVexHandle = this->vertex_handle(halfEdgeVec[i]);
+			_vhs[i] = this->coord(currentVexHandle);
 		}
 	}
 	///////////////////////////////////////////////////////////////
@@ -990,7 +993,7 @@ namespace MeshN {
 		HalfedgeHandle& hh = halfedge_handle(vh);
 		HalfedgeHandle css(hh);
 		do{
-			FacetHandle currentFaceHandle = facet_handle(css);
+			FacetHandle currentFaceHandle = this->facet_handle(css);
 			if (currentFaceHandle.idx() == -1)
 			{
 				cout << "Current face handle is -1" << endl;
@@ -1019,13 +1022,13 @@ namespace MeshN {
 	void ExKernelT<ExItems>::getFaceAera(std::vector<double> &areaVector){
 		//update_area();
 
-		int faceNumber = facet_size();
+		int faceNumber = Kernel::facet_size();
 		areaVector.resize(faceNumber);
 
-		FacetIterator fit(facet_begin());
-		for (; fit < facet_end(); ++fit){
+		FacetIterator fit(Kernel::facet_begin());
+		for (; fit < Kernel::facet_end(); ++fit){
 			HalfedgeHandle hh = fit->halfedge_handle_;
-			FacetHandle    fh = facet_handle(hh);
+			FacetHandle    fh = this->facet_handle(hh);
 			areaVector[fh.idx()] = get_area(fh);
 		}
 	}
@@ -1034,14 +1037,14 @@ namespace MeshN {
 	void ExKernelT<ExItems>::getFaceNormal(std::vector<Normal> &normalVector){
 		//update_normals();
 
-		int faceNumber = facet_size();
+		int faceNumber = Kernel::facet_size();
 		normalVector.resize(faceNumber);
 
-		FacetIterator fit(facet_begin());
-		for (; fit < facet_end(); ++fit)
+		FacetIterator fit(Kernel::facet_begin());
+		for (; fit < Kernel::facet_end(); ++fit)
 		{
 			HalfedgeHandle hh = fit->halfedge_handle_;
-			FacetHandle fh = facet_handle(hh);
+			FacetHandle fh = this->facet_handle(hh);
 			normalVector[fh.idx()] = normal(fh);
 		}
 	}
@@ -1049,7 +1052,7 @@ namespace MeshN {
 	template<class ExItems>
 	void ExKernelT<ExItems>::UpdateVertexPosition(std::vector<Normal> &original_facet_normals, std::vector<Normal> &filtered_normals){
 		update_area();
-		int facet_num = facet_size();
+		int facet_num = Kernel::facet_size();
 		if (facet_num <= 0)
 		{
 			return;
@@ -1065,7 +1068,7 @@ namespace MeshN {
 		time_t start = 0, end = 0;
 		//thirdly get the coefficient matrix of the Epoisson term
 		start = clock();
-		int vertices_number = vertex_size();
+		int vertices_number = Kernel::vertex_size();
 		Eigen::SparseMatrix<double> p_Coefficient_Matrix(vertices_number, vertices_number);		//the coefficient  matrix of Epoisson term
 		getPoissonCoefficientMatrix(p_Coefficient_Matrix);
 		end = clock();
@@ -1075,34 +1078,34 @@ namespace MeshN {
 		Eigen::MatrixXd coordinatesVector;
 		//lastly,solve the linear equation and get the result
 		start = clock();
-		//solveLinearEquation(total_Coefficient_Matrix, divergenceVector, coordinatesVector);
-		solveLinearEquation_CG(total_Coefficient_Matrix, divergenceVector, coordinatesVector);
+		//solveLinearEquation(total_Coefficient_Matrix, divergenceVector, this->coordinatesVector);
+		solveLinearEquation_CG(total_Coefficient_Matrix, divergenceVector, this->coordinatesVector);
 		end = clock();
 		cout << "[Vertex updating: solve the linear equation] running time: " << double(end - start) / CLOCKS_PER_SEC << " second (s)" << endl;
 
 		//change data type
-		int verticesNum = vertex_size();
+		int verticesNum = Kernel::vertex_size();
 		std::vector<Coord> new_points(verticesNum);
 		for (int i = 0; i < verticesNum; ++i){
 			Coord iThPoint = new_points[i];
 			for (int j = 0; j < 3; ++j){
-				iThPoint[j] = coordinatesVector(i, j);
+				iThPoint[j] = this->coordinatesVector(i, j);
 			}
 			new_points[i] = iThPoint;
 		}
 
-		VertexIterator vit(vertex_begin());
-		for (; vit != vertex_end(); ++vit){
+		VertexIterator vit(Kernel::vertex_begin());
+		for (; vit != Kernel::vertex_end(); ++vit){
 			HalfedgeHandle currentHH = vit->halfedge_handle_;
 			if (!currentHH.is_valid())
 			{
 				continue;
 			}
 
-			VertexHandle currentVH = vertex_handle(vit->halfedge_handle_);
-			Vertex currentVex = vertex_ref(currentVH);
+			VertexHandle currentVH = this->vertex_handle(vit->halfedge_handle_);
+			Vertex currentVex = this->vertex_ref(currentVH);
 			currentVex.coord_ = new_points[currentVH.idx()];
-			vertices_[currentVH.idx()] = currentVex;
+			Kernel::vertices_[currentVH.idx()] = currentVex;
 		}
 
 		cout << "vertex updating is ending..." << endl;
@@ -1112,7 +1115,7 @@ namespace MeshN {
 	template<class ExItems>
 	void ExKernelT<ExItems>::calculateNewGradientVector(std::vector<Normal> &original_normals, std::vector<Normal> &filtered_normals,
 		std::vector<std::vector<Coord> > &rotated_gradients){
-		int facet_num = facet_size();
+		int facet_num = Kernel::facet_size();
 		rotated_gradients.resize(facet_num);
 
 		//std::vector<Normal> original_normals;
@@ -1122,22 +1125,22 @@ namespace MeshN {
 
 		Eigen::Matrix3d rotation_matrix;
 		Eigen::Vector3d vertex_vector;
-		FacetIterator fit(facet_begin());
-		for (; fit<facet_end(); fit++){
+		FacetIterator fit(Kernel::facet_begin());
+		for (; fit<Kernel::facet_end(); fit++){
 			HalfedgeHandle hh = fit->halfedge_handle_;
-			FacetHandle fh = facet_handle(hh);
+			FacetHandle fh = this->facet_handle(hh);
 
 			Normal original_normal = original_normals[fh.idx()];
 			Normal filtered_normal = filtered_normals[fh.idx()];
 
 			//get the rotation matrix for each face with original normal and filtered normal
 			getRotationMatrixForEachFace(original_normal, filtered_normal, rotation_matrix);
-			std::vector<Coord> points;      //store three new coordinates of the triangle
+			std::vector<Coord> points;      //store three new this->coordinates of the triangle
 			points.resize(3);
-			//obtain the three vertex coordinates
+			//obtain the three vertex this->coordinates
 			getPointsForFace(fh, points);
 
-			//update the three vertex coordinates of each triangle based on the original normal and the filtered normal
+			//update the three vertex this->coordinates of each triangle based on the original normal and the filtered normal
 			for (int i = 0; i < 3; i++){
 				Coord face_vertex = points[i];
 				//turn the Coord type parameter to Eigen::Vector3f type
@@ -1163,7 +1166,7 @@ namespace MeshN {
 				triangle_basis_vector[i] = ((points[(i + 1) % 3] - points[(i + 2) % 3]) % filtered_normal) / (2 * area);
 			}
 
-			//iterate the three weight of each coordinate
+			//iterate the three weight of each this->coordinate
 			for (int i = 0; i < 3; i++){
 				//face_gradient_vector[i] = Vec3f(0,0,0);
 				face_gradient_vector[i] = Coord(0, 0, 0);
@@ -1208,7 +1211,7 @@ namespace MeshN {
 	template<class ExItems>
 	void ExKernelT<ExItems>::calculateDivergence(std::vector<std::vector<Coord> >&rotated_gradients,
 		std::vector<std::vector<double> > &divergenceVector){
-		int n_vertices = vertex_size();
+		int n_vertices = Kernel::vertex_size();
 		divergenceVector.resize(n_vertices);
 		for (size_t i = 0; i < divergenceVector.size(); ++i){
 			std::vector<double> zeroVector(3, 0);
@@ -1228,15 +1231,15 @@ namespace MeshN {
 		for (int i = 0; i < (int)face_areas.size(); ++i){
 			areaSum += face_areas[i];
 		}
-		double averageArea = areaSum / (int)facet_size();
+		double averageArea = areaSum / (int)Kernel::facet_size();
 
-		FacetIterator fit(facet_begin());
-		for (; fit<facet_end(); fit++){
+		FacetIterator fit(Kernel::facet_begin());
+		for (; fit<Kernel::facet_end(); fit++){
 			//È¡³öÃ¿¸öÃæµÄ¾ä±ú
 			HalfedgeHandle hh = fit->halfedge_handle_;
-			FacetHandle fh = facet_handle(hh);
+			FacetHandle fh = this->facet_handle(hh);
 
-			std::vector<Coord> points;      //store three new coordinates of the triangle
+			std::vector<Coord> points;      //store three new this->coordinates of the triangle
 			std::vector<int> vertexIndexVector;
 			points.resize(3);   vertexIndexVector.resize(3);
 			int index = 0;
@@ -1246,7 +1249,7 @@ namespace MeshN {
 			for (size_t i = 0; i < vertexHandlesVector.size(); ++i)
 			{
 				VertexHandle currentVH = vertexHandlesVector[i];
-				points[i] = coord(currentVH);
+				points[i] = this->coord(currentVH);
 				vertexIndexVector[i] = currentVH.idx();
 			}
 
@@ -1285,10 +1288,10 @@ namespace MeshN {
 	template<class ExItems>
 	void ExKernelT<ExItems>::getPoissonCoefficientMatrix(Eigen::SparseMatrix<double> &p_Coefficient_Matrix){
 		//resize the coefficient matrix size and then set it zero
-		double vertices_number = vertex_size();
+		double vertices_number = Kernel::vertex_size();
 		p_Coefficient_Matrix.resize(vertices_number, vertices_number);
 
-		std::vector<double> face_area(facet_size());
+		std::vector<double> face_area(Kernel::facet_size());
 		getFaceAera(face_area);
 
 		//calculate the average area of the mesh
@@ -1296,15 +1299,15 @@ namespace MeshN {
 		for (int i = 0; i < (int)face_area.size(); ++i){
 			areaSum += face_area[i];
 		}
-		double averageArea = areaSum / facet_size();
+		double averageArea = areaSum / Kernel::facet_size();
 
 		time_t start = 0, end = 0; //lzhu
 		time(&start);//lzhu
-		FacetIterator fit(facet_begin());
-		for (; fit<facet_end(); fit++){
+		FacetIterator fit(Kernel::facet_begin());
+		for (; fit<Kernel::facet_end(); fit++){
 			
 			HalfedgeHandle hh = fit->halfedge_handle_;
-			FacetHandle    fh = facet_handle(hh);
+			FacetHandle    fh = this->facet_handle(hh);
 
 			int index = 0;
 			std::vector<Coord> pointVector;    std::vector<int> vertexIndexVector;
@@ -1315,7 +1318,7 @@ namespace MeshN {
 			for (size_t i = 0; i < vertexHandleVector.size(); ++i)
 			{
 				VertexHandle currentVH = vertexHandleVector[i];
-				pointVector[i] = coord(currentVH);
+				pointVector[i] = this->coord(currentVH);
 				vertexIndexVector[i] = currentVH.idx();
 			}
 
@@ -1376,7 +1379,7 @@ namespace MeshN {
 		for (size_t i = 0; i < vhVector.size(); ++i)
 		{
 			VertexHandle tmpVH = vhVector[i];
-			pointVector[index] = coord(tmpVH);
+			pointVector[index] = this->coord(tmpVH);
 			vertexIndexVector[index] = tmpVH.idx();
 			index++;
 		}
@@ -1406,11 +1409,11 @@ namespace MeshN {
 		FacetHandle secondFaceHandle = FacetHandle(secondFaceHandleIndex);
 		EdgeHandle conjunctEdgeHandle = EdgeHandle(conjunctEdgeIndex);
 
-		VertexHandle firstConjunctPointHandle = vertex_handle(halfedge_handle(conjunctEdgeHandle, 0));
-		VertexHandle secondConjunctPointHandle = vertex_handle(halfedge_handle(conjunctEdgeHandle, 1));
+		VertexHandle firstConjunctPointHandle = this->vertex_handle(halfedge_handle(conjunctEdgeHandle, 0));
+		VertexHandle secondConjunctPointHandle = this->vertex_handle(halfedge_handle(conjunctEdgeHandle, 1));
 
-		Coord firstConjunctPoint = coord(firstConjunctPointHandle);
-		Coord secondConjunctPoint = coord(secondConjunctPointHandle);
+		Coord firstConjunctPoint = this->coord(firstConjunctPointHandle);
+		Coord secondConjunctPoint = this->coord(secondConjunctPointHandle);
 		Coord rotationAxisVec = firstConjunctPoint - secondConjunctPoint;
 
 		Normal firstFaceNormal = normal(firstFaceHandle);
@@ -1419,7 +1422,7 @@ namespace MeshN {
 		Eigen::Matrix3d rotationMatrix;
 		calculateFaceRotationMatrix(rotationAxisVec, firstFaceNormal, secondFaceNormal, rotationMatrix);
 
-		//used to store the three coordinates of two triangle faces that are linked with the conjunct edge
+		//used to store the three this->coordinates of two triangle faces that are linked with the conjunct edge
 		std::vector<Coord> firstFacePointVec, secondFacePointVec;
 		firstFacePointVec.resize(3); secondFacePointVec.resize(3);
 		std::vector<int> firstFacePointIndexVec, secondFacePointIndexVec;
@@ -1432,7 +1435,7 @@ namespace MeshN {
 		{
 			VertexHandle currentHandle = firstFaceVHs[i];
 			firstFacePointIndexVec[index] = currentHandle.idx();
-			firstFacePointVec[index] = coord(currentHandle);
+			firstFacePointVec[index] = this->coord(currentHandle);
 			index++;
 		}
 		index = 0;
@@ -1442,7 +1445,7 @@ namespace MeshN {
 		{
 			VertexHandle currentHandle = secondFaceVHs[j];
 			secondFacePointIndexVec[index] = currentHandle.idx();
-			secondFacePointVec[index] = coord(currentHandle);
+			secondFacePointVec[index] = this->coord(currentHandle);
 			index++;
 		}
 		//TriMesh::Point type vector
@@ -1489,14 +1492,14 @@ namespace MeshN {
 	///////////////////////////////////////////////////////////////
 	template<class ExItems>
 	void ExKernelT<ExItems>::getSmoothCoefficientMatrix(Eigen::SparseMatrix<double> &s_Coefficient_Matrix){
-		int vertices_number = vertex_size();
+		int vertices_number = Kernel::vertex_size();
 		s_Coefficient_Matrix.resize(vertices_number, vertices_number);
 		//s_Coefficient_Matrix.setZero();
 
-		double averageEdgeLength = get_average_edge_length(), lanmada = 0.5;
+		double averageEdgeLength = Kernel::get_average_edge_length(), lanmada = 0.5;
 
-		EdgeIterator eit = edge_begin();
-		for (; eit != edge_end(); ++eit) {
+		EdgeIterator eit = Kernel::edge_begin();
+		for (; eit != Kernel::edge_end(); ++eit) {
 			Halfedge firstEdge = eit->halfedges_[0];
 			VertexHandle tmpVH = firstEdge.vertex_handle_;		//the to point of the first edge
 			HalfedgeHandle tmpHalfEH = halfedge_handle(tmpVH);		//the half edge of the firstEdge represent
@@ -1509,19 +1512,19 @@ namespace MeshN {
 				HalfedgeHandle firstHalfEdgeHandle = halfedge_handle(currentEdgeHandle, 0);
 				HalfedgeHandle secondHalfEdgeHandle = halfedge_handle(currentEdgeHandle, 1);
 
-				FacetHandle firstFaceHandle = facet_handle(firstHalfEdgeHandle);
-				FacetHandle secondFaceHandle = facet_handle(secondHalfEdgeHandle);
+				FacetHandle firstFaceHandle = this->facet_handle(firstHalfEdgeHandle);
+				FacetHandle secondFaceHandle = this->facet_handle(secondHalfEdgeHandle);
 
 				if (firstFaceHandle.idx() == -1 || secondFaceHandle.idx() == -1)
 				{
 					continue;
 				}
 
-				VertexHandle firstPointHandle = vertex_handle(firstHalfEdgeHandle);
-				VertexHandle secondPointHandle = vertex_handle(secondHalfEdgeHandle);
+				VertexHandle firstPointHandle = this->vertex_handle(firstHalfEdgeHandle);
+				VertexHandle secondPointHandle = this->vertex_handle(secondHalfEdgeHandle);
 
-				Coord firstPointCoord = coord(firstPointHandle);
-				Coord secondPointCoord = coord(secondPointHandle);
+				Coord firstPointCoord = this->coord(firstPointHandle);
+				Coord secondPointCoord = this->coord(secondPointHandle);
 
 				updateCoefficientMatrixWithQuadraticTerm(firstFaceHandle.idx(),
 					(firstPointCoord - secondPointCoord).length(), (lanmada / averageEdgeLength), s_Coefficient_Matrix);
@@ -1552,19 +1555,19 @@ namespace MeshN {
 			}
 		}
 
-		//Eigen::MatrixXd coordinatesVector(vectorSize,3);
-		//coordinatesVector = t_Coefficient_Matrix.llt().solve(divergenceMatrix);
+		//Eigen::MatrixXd this->coordinatesVector(vectorSize,3);
+		//this->coordinatesVector = t_Coefficient_Matrix.llt().solve(divergenceMatrix);
 
-		coordinatesVector.resize(vectorSize, 3);
-		//cout << "rows=" << coordinatesVector.rows() << ", cols=" << coordinatesVector.cols() << endl;
+		this->coordinatesVector.resize(vectorSize, 3);
+		//cout << "rows=" << this->coordinatesVector.rows() << ", cols=" << this->coordinatesVector.cols() << endl;
 
-		//coordinatesVector = t_Coefficient_Matrix.colPivHouseholderQr().solve(divergenceVector);
+		//this->coordinatesVector = t_Coefficient_Matrix.colPivHouseholderQr().solve(divergenceVector);
 
 		// solve linear system
 		Eigen::SparseLU<Eigen::SparseMatrix<double> > solver;
 		solver.analyzePattern(t_Coefficient_Matrix);
 		solver.factorize(t_Coefficient_Matrix);
-		coordinatesVector = solver.solve(divergenceMatrix);
+		this->coordinatesVector = solver.solve(divergenceMatrix);
 	}
 
 	///////////////////////////////////////////////////////////////
@@ -1587,10 +1590,10 @@ namespace MeshN {
 			}
 		}
 
-		//Eigen::MatrixXd coordinatesVector(vectorSize,3);
-		//coordinatesVector = t_Coefficient_Matrix.llt().solve(divergenceMatrix);
+		//Eigen::MatrixXd this->coordinatesVector(vectorSize,3);
+		//this->coordinatesVector = t_Coefficient_Matrix.llt().solve(divergenceMatrix);
 		ConjugateGradient<SparseMatrix<double>, Eigen::Upper> solver;
-		coordinatesVector = solver.compute(t_Coefficient_Matrix).solve(divergenceMatrix);
+		this->coordinatesVector = solver.compute(t_Coefficient_Matrix).solve(divergenceMatrix);
 	}
 
 
@@ -1598,7 +1601,7 @@ namespace MeshN {
 	template<class ExItems>
 	void
 		ExKernelT<ExItems>::adjustVertexCoord(int iterations){///Sun Xiangfang TVCG 2007 fast and effective feature-preserving mesh denoising			
-			int vertex_num = vertex_size();
+			int vertex_num = Kernel::vertex_size();
 			while(--iterations)
 			{	
 				std::vector<Coord> updateVertexPosition;
@@ -1606,31 +1609,31 @@ namespace MeshN {
 				for (int i = 0; i < vertex_num; i++){
 					//cout << i << endl;
 					VertexHandle vh(i);
-					Coord&       vc = coord(vh);
-					HalfedgeHandle& hh = halfedge_handle(vh);
+					Coord&       vc = this->coord(vh);
+					HalfedgeHandle hh = this->halfedge_handle(vh);
 					HalfedgeHandle  css(hh);
 					do{
-						HalfedgeHandle opp_hh = opposite_halfedge_handle(css);
-						Coord&         opp_vc = coord(vertex_handle(opp_hh));
-						FacetHandle    fl = facet_handle(css);
-						FacetHandle    fr = facet_handle(opp_hh);
+						HalfedgeHandle opp_hh = this->opposite_halfedge_handle(css);
+						Coord&         opp_vc = this->coord(this->vertex_handle(opp_hh));
+						FacetHandle    fl = this->facet_handle(css);
+						FacetHandle    fr = this->facet_handle(opp_hh);
 
 						if (fl.is_valid()){
-							updateVertexPosition[i] += facet_ref(fl).normal_*(facet_ref(fl).normal_ *(opp_vc - vc));
+							updateVertexPosition[i] += this->facet_ref(fl).normal_*(this->facet_ref(fl).normal_ *(opp_vc - vc));
 
 						}
 						if (fr.is_valid()){
-							updateVertexPosition[i] += facet_ref(fr).normal_*(facet_ref(fr).normal_ *(opp_vc - vc));
+							updateVertexPosition[i] += this->facet_ref(fr).normal_*(this->facet_ref(fr).normal_ *(opp_vc - vc));
 
 						}
 
-						css = cw_rotated(css);
+						css = this->cw_rotated(css);
 
 					} while (css != hh);
 				}
 				for (int i = 0; i < vertex_num; i++)
 				{ 
-					vertex_ref(VertexHandle(i)).coord_ += updateVertexPosition[i] * 1.0 / 18.0; 
+					this->vertex_ref(VertexHandle(i)).coord_ += updateVertexPosition[i] * 1.0 / 18.0;
 				}
 			};
 		}
@@ -1639,8 +1642,8 @@ namespace MeshN {
 	void
 		ExKernelT<ExItems>::calcUpdatedVertexNormal(std::vector<Normal>& updatedVertexNormals)
 	{
-			VertexIterator vi = vertex_begin();
-			for (; vi != vertex_end(); vi++)
+			VertexIterator vi = Kernel::vertex_begin();
+			for (; vi != Kernel::vertex_end(); vi++)
 			{
 				Normal updatedNormal = vi->normal_;
 				updatedVertexNormals.push_back(updatedNormal);
@@ -1652,23 +1655,23 @@ namespace MeshN {
 	typename ExKernelT<ExItems>::Scalar
 		ExKernelT<ExItems>::calc_facet_area(const FacetHandle& _fh){
 
-			HalfedgeHandle& hh0 = halfedge_handle(_fh);
-			HalfedgeHandle& hh1 = next_halfedge_handle(hh0);
-			HalfedgeHandle& hh2 = next_halfedge_handle(hh1);
+			HalfedgeHandle hh0 = this->halfedge_handle(_fh);
+			HalfedgeHandle hh1 = this->next_halfedge_handle(hh0);
+			HalfedgeHandle hh2 = this->next_halfedge_handle(hh1);
 
-			EdgeHandle& eh0 = edge_handle(hh0);
-			EdgeHandle& eh1 = edge_handle(hh1);
-			EdgeHandle& eh2 = edge_handle(hh2);
+			EdgeHandle eh0 = this->edge_handle(hh0);
+			EdgeHandle eh1 = this->edge_handle(hh1);
+			EdgeHandle eh2 = this->edge_handle(hh2);
 
-			Scalar eh0_length = calc_edge_length(eh0);
-			Scalar eh1_length = calc_edge_length(eh1);
-			Scalar eh2_length = calc_edge_length(eh2);
+			Scalar eh0_length = this->calc_edge_length(eh0);
+			Scalar eh1_length = this->calc_edge_length(eh1);
+			Scalar eh2_length = this->calc_edge_length(eh2);
 
 			Scalar area;
 			Scalar p = (eh0_length + eh1_length + eh2_length)/2.0;
 			area=sqrt( p * (p-eh0_length) * (p-eh1_length) * (p-eh2_length) );
 
-			facet_ref(_fh).area_ = area;
+			this->facet_ref(_fh).area_ = area;
 			return area;
 	}
 
@@ -1677,11 +1680,11 @@ namespace MeshN {
 	void ExKernelT<ExItems>::update_area()
 	{   
 		set_isArea(true);
-		FacetIterator fit(facet_begin() );
-		for(;fit<facet_end(); fit++)
+		FacetIterator fit(Kernel::facet_begin() );
+		for(;fit<Kernel::facet_end(); fit++)
 		{
 			HalfedgeHandle hh = fit->halfedge_handle_;
-			FacetHandle    fh = facet_handle(hh);
+			FacetHandle    fh = this->facet_handle(hh);
 			calc_facet_area(fh);
 		}
 	}
@@ -1690,7 +1693,7 @@ namespace MeshN {
 	typename ExKernelT<ExItems>::Scalar
 		ExKernelT<ExItems>::get_area(const FacetHandle& _fh)
 	{
-		return facet_ref(_fh).area_;
+		return this->facet_ref(_fh).area_;
 	}
 	//////////////////////////////////////////////////////////////////////////////
 	template<class ExItems> 
@@ -1698,11 +1701,11 @@ namespace MeshN {
 		ExKernelT<ExItems>::calc_edge_length(const EdgeHandle &_eh) {//updating all edge length
 
 
-			HalfedgeHandle& h1 = halfedge_handle(_eh,0);
-			HalfedgeHandle& h2 = halfedge_handle(_eh,1);
+			HalfedgeHandle h1 = this->halfedge_handle(_eh,0);
+			HalfedgeHandle h2 = this->halfedge_handle(_eh,1);
 
-			Vertex v0 = vertex_ref(vertex_handle(h1) );
-			Vertex v1 = vertex_ref(vertex_handle(h2) );
+			Vertex v0 = this->vertex_ref(this->vertex_handle(h1) );
+			Vertex v1 = this->vertex_ref(this->vertex_handle(h2) );
 
 			return (v0.coord_-v1.coord_).norm();
 
@@ -1710,7 +1713,7 @@ namespace MeshN {
 
 	///////////////////////////////////////////////////////////////////////////////
 	template<class ExItems>
-	void ExKernelT<ExItems>::getNeighborVertices_withRingIndex(VertexHandle& _vh, int _verticesNum, std::vector<VertexHandle>& NeighborVertices, std::vector<int>& ringIdx)
+	void ExKernelT<ExItems>::getNeighborVertices_withRingIndex(const VertexHandle& _vh, int _verticesNum, std::vector<VertexHandle>& NeighborVertices, std::vector<int>& ringIdx)
 	{
 		int ringIndex = 0;
 		NeighborVertices.push_back(_vh);
@@ -1726,12 +1729,12 @@ namespace MeshN {
 			verOldNum = NeighborVertices.size();
 			for (int i = verOldNum1; i < verNewNum; i++) {
 				VertexHandle& vh = NeighborVertices[i];
-				HalfedgeHandle& hh = halfedge_handle(vh);
+				HalfedgeHandle hh = this->halfedge_handle(vh);
 				HalfedgeHandle css(hh);
 				do {
 					int ii = 0;
-					HalfedgeHandle& opp_hh = opposite_halfedge_handle(css);
-					VertexHandle&   opp_vh = vertex_handle(opp_hh);
+					HalfedgeHandle opp_hh = this->opposite_halfedge_handle(css);
+					VertexHandle   opp_vh = this->vertex_handle(opp_hh);
 					for (ii = 0; ii<NeighborVertices.size(); ii++)
 						if (opp_vh == NeighborVertices[ii]) break;
 
@@ -1745,7 +1748,7 @@ namespace MeshN {
 						}
 					}
 
-					css = cw_rotated(css);
+					css = this->cw_rotated(css);
 				} while (css != hh);
 			}
 			verNewNum = NeighborVertices.size();
@@ -1755,7 +1758,7 @@ namespace MeshN {
 
 	///////////////////////////////////////////////////////////////////////////////
 	template<class ExItems>
-	void ExKernelT<ExItems>::getNeighborVertices(VertexHandle& _vh, int _verticesNum, std::vector<VertexHandle>& NeighborVertices) {
+	void ExKernelT<ExItems>::getNeighborVertices(const VertexHandle& _vh, int _verticesNum, std::vector<VertexHandle>& NeighborVertices) {
 
 			NeighborVertices.push_back(_vh);
 			int iteration = 0;
@@ -1768,12 +1771,12 @@ namespace MeshN {
 				verOldNum = NeighborVertices.size();
 				for (int i = verOldNum1; i < verNewNum; i++) {
 					VertexHandle& vh = NeighborVertices[i];
-					HalfedgeHandle& hh = halfedge_handle(vh);
+					HalfedgeHandle hh = this->halfedge_handle(vh);
 					HalfedgeHandle css(hh);
 					do {
 						int ii = 0;
-						HalfedgeHandle& opp_hh = opposite_halfedge_handle(css);
-						VertexHandle&   opp_vh = vertex_handle(opp_hh);
+						HalfedgeHandle opp_hh = this->opposite_halfedge_handle(css);
+						VertexHandle   opp_vh = this->vertex_handle(opp_hh);
 						for (ii = 0; ii<NeighborVertices.size(); ii++)
 						if (opp_vh == NeighborVertices[ii]) break;
 
@@ -1787,7 +1790,7 @@ namespace MeshN {
 						}
 						if (NeighborVertices.size() > _verticesNum) break;
 
-						css = cw_rotated(css);
+						css = this->cw_rotated(css);
 					} while (css != hh);
 					if (NeighborVertices.size() > _verticesNum) break;
 				}
@@ -1800,7 +1803,7 @@ namespace MeshN {
 	/////////////////////////////////////////////////////////////////////////////
 	template<class ExItems>
 	void
-		ExKernelT<ExItems>::getNeighborRing(VertexHandle& _vh, int _ring, std::vector<VertexHandle>& NeighborRing){//µÃµ½µÚring»·ÁÚ½Óµã
+		ExKernelT<ExItems>::getNeighborRing(const VertexHandle& _vh, int _ring, std::vector<VertexHandle>& NeighborRing){//µÃµ½µÚring»·ÁÚ½Óµã
 
 			NeighborRing.push_back( _vh );
 			int iteration = 0;
@@ -1811,20 +1814,20 @@ namespace MeshN {
 			do{
 				verOldNum = NeighborRing.size();
 				for(int i=verOldNum1; i<verNewNum; i++){
-					VertexHandle& vh = NeighborRing[i];					
-					HalfedgeHandle& hh = halfedge_handle(vh);
+					VertexHandle vh = NeighborRing[i];
+					HalfedgeHandle hh = this->halfedge_handle(vh);
 					HalfedgeHandle css(hh);
 					do{
 						int ii = 0;
-						HalfedgeHandle& opp_hh = opposite_halfedge_handle(css);
-						VertexHandle&   opp_vh = vertex_handle(opp_hh);
+						HalfedgeHandle opp_hh = this->opposite_halfedge_handle(css);
+						VertexHandle   opp_vh = this->vertex_handle(opp_hh);
 						for(ii=0; ii<NeighborRing.size(); ii++)
 							if(opp_vh == NeighborRing[ii] ) break;
 
 						if(ii >= NeighborRing.size() )
 							NeighborRing.push_back(opp_vh);
 
-						css = cw_rotated(css);
+						css = this->cw_rotated(css);
 					}while(css != hh);
 				}
 
@@ -1837,29 +1840,29 @@ namespace MeshN {
 	///////////////////////////////////////////////////////////////////////////////
 	template<class ExItems>
 	void
-		ExKernelT<ExItems>::getNeighborFaceN1(FacetHandle& _fh, std::vector<FacetHandle>& _fhs){//sharing common edges
+		ExKernelT<ExItems>::getNeighborFaceN1(const FacetHandle& _fh, std::vector<FacetHandle>& _fhs){//sharing common edges
 
 			HalfedgeHandle& hh = halfedge_handle(_fh);
 			HalfedgeHandle& pre_hh = prev_halfedge_handle(hh);
 			HalfedgeHandle& nex_hh = next_halfedge_handle(hh);
 
-			_fhs.push_back( facet_handle( opposite_halfedge_handle(hh) ) );
-			_fhs.push_back( facet_handle( opposite_halfedge_handle(pre_hh ) ) );
-			_fhs.push_back( facet_handle(opposite_halfedge_handle(nex_hh ) ) );
+			_fhs.push_back( this->facet_handle( opposite_halfedge_handle(hh) ) );
+			_fhs.push_back( this->facet_handle( opposite_halfedge_handle(pre_hh ) ) );
+			_fhs.push_back( this->facet_handle(opposite_halfedge_handle(nex_hh ) ) );
 	}
 	///////////////////////////////////////////////////////////////////////////////
 	template<class ExItems>
 	void 
-		ExKernelT<ExItems>::getNeighborFaceN2(FacetHandle& _fh, std::vector<FacetHandle>& _fhs){//sharing common vertices
+		ExKernelT<ExItems>::getNeighborFaceN2(const FacetHandle& _fh, std::vector<FacetHandle>& _fhs){//sharing common vertices
 
 			HalfedgeHandle& hh = halfedge_handle(_fh);
 			HalfedgeHandle& pre_hh = prev_halfedge_handle(hh);
 			HalfedgeHandle& nex_hh = next_halfedge_handle(hh);
 
 			VertexHandle  vhs[3];
-			vhs[0] = vertex_handle(hh);
-			vhs[1] = vertex_handle(pre_hh);
-			vhs[2] = vertex_handle(nex_hh);
+			vhs[0] = this->vertex_handle(hh);
+			vhs[1] = this->vertex_handle(pre_hh);
+			vhs[2] = this->vertex_handle(nex_hh);
 
 			for(int i=0; i<3; i++){
 
@@ -1868,12 +1871,13 @@ namespace MeshN {
 
 				do{
 
-					FacetHandle fh = facet_handle(cursor);
+					FacetHandle fh = this->facet_handle(cursor);
 					if(fh.is_valid() && fh != _fh){
 
 						if(_fhs.size() != 0){
 
-							for(int j=0; j< _fhs.size(); j++){
+							int j = 0;
+							for( j=0; j< _fhs.size(); j++){
 
 								if(fh.idx() == _fhs[j].idx() ) break;
 							}//end for
@@ -1897,33 +1901,33 @@ namespace MeshN {
 		FILE *fp;
 		fp=fopen("result.off","w");
 
-		int no_vertex=vertex_size();
-		int no_facet=facet_size();
+		int no_vertex=Kernel::vertex_size();
+		int no_facet=Kernel::facet_size();
 		int edge = 0;
 
 		fprintf(fp,"OFF\n");
 		fprintf(fp,"%d  %d %d\n",no_vertex,no_facet, edge);
 
-		VertexIterator vit(vertex_begin());
+		VertexIterator vit(Kernel::vertex_begin());
 
-		for(;vit!=vertex_end();vit++){
+		for(;vit!=Kernel::vertex_end();vit++){
 
-			VertexHandle vh=vertex_handle(vit->halfedge_handle_);
-			fprintf(fp," %f  %f  %f\n",coord(vh).data_[0],coord(vh).data_[1],coord(vh).data_[2]);
+			VertexHandle vh=this->vertex_handle(vit->halfedge_handle_);
+			fprintf(fp," %f  %f  %f\n",this->coord(vh).data_[0],this->coord(vh).data_[1],this->coord(vh).data_[2]);
 
 		}
 
-		FacetIterator fit(facet_begin());
+		FacetIterator fit(Kernel::facet_begin());
 
-		for(;fit!=facet_end();fit++){
+		for(;fit!=Kernel::facet_end();fit++){
 
 			HalfedgeHandle hh=fit->halfedge_handle_;
 			HalfedgeHandle nh=next_halfedge_handle(hh);
 			HalfedgeHandle nnh=next_halfedge_handle(nh);
 
-			VertexHandle vh=vertex_handle(hh);
-			VertexHandle nvh=vertex_handle(nh);
-			VertexHandle nnvh=vertex_handle(nnh);
+			VertexHandle vh=this->vertex_handle(hh);
+			VertexHandle nvh=this->vertex_handle(nh);
+			VertexHandle nnvh=this->vertex_handle(nnh);
 
 			fprintf(fp,"3 %d  %d  %d\n",vh.idx(),nvh.idx(),nnvh.idx());
 
@@ -1938,33 +1942,33 @@ namespace MeshN {
 		FILE *fp;
 		fp = fopen(filename, "w");
 
-		int no_vertex = vertex_size();
-		int no_facet = facet_size();
+		int no_vertex = Kernel::vertex_size();
+		int no_facet = Kernel::facet_size();
 		int edge = 0;
 
 		fprintf(fp, "OFF\n");
 		fprintf(fp, "%d  %d %d\n", no_vertex, no_facet, edge);
 
-		VertexIterator vit(vertex_begin());
+		VertexIterator vit(Kernel::vertex_begin());
 
-		for (; vit != vertex_end(); vit++){
+		for (; vit != Kernel::vertex_end(); vit++){
 
-			VertexHandle vh = vertex_handle(vit->halfedge_handle_);
-			fprintf(fp, " %f  %f  %f\n", coord(vh).data_[0], coord(vh).data_[1], coord(vh).data_[2]);
+			VertexHandle vh = this->vertex_handle(vit->halfedge_handle_);
+			fprintf(fp, " %f  %f  %f\n", this->coord(vh).data_[0], this->coord(vh).data_[1], this->coord(vh).data_[2]);
 
 		}
 
-		FacetIterator fit(facet_begin());
+		FacetIterator fit(Kernel::facet_begin());
 
-		for (; fit != facet_end(); fit++){
+		for (; fit != Kernel::facet_end(); fit++){
 
 			HalfedgeHandle hh = fit->halfedge_handle_;
-			HalfedgeHandle nh = next_halfedge_handle(hh);
-			HalfedgeHandle nnh = next_halfedge_handle(nh);
+			HalfedgeHandle nh = this->next_halfedge_handle(hh);
+			HalfedgeHandle nnh = this->next_halfedge_handle(nh);
 
-			VertexHandle vh = vertex_handle(hh);
-			VertexHandle nvh = vertex_handle(nh);
-			VertexHandle nnvh = vertex_handle(nnh);
+			VertexHandle vh = this->vertex_handle(hh);
+			VertexHandle nvh = this->vertex_handle(nh);
+			VertexHandle nnvh = this->vertex_handle(nnh);
 
 			fprintf(fp, "3 %d  %d  %d\n", vh.idx(), nvh.idx(), nnvh.idx());
 
@@ -1977,8 +1981,8 @@ namespace MeshN {
 	typename ExKernelT<ExItems>::Normal
 		ExKernelT<ExItems>::normal(const FacetHandle& _fh) {
 			assert( _fh.is_valid() );
-			assert( _fh.idx() < facet_size() );
-			return facet_ref(_fh).normal_;
+			assert( _fh.idx() < Kernel::facet_size() );
+			return this->facet_ref(_fh).normal_;
 	}
 
 
@@ -1987,15 +1991,15 @@ namespace MeshN {
 	typename ExKernelT<ExItems>::Normal
 		ExKernelT<ExItems>::calc_normal(const FacetHandle& _fh) {
 			assert( _fh.is_valid() );
-			assert( _fh.idx() < facet_size() );
+			assert( _fh.idx() < Kernel::facet_size() );
 
-			const HalfedgeHandle&   hh = halfedge_handle(_fh);
-			const HalfedgeHandle& p_hh = prev_halfedge_handle(hh);
-			const HalfedgeHandle& n_hh = next_halfedge_handle(hh);
+			const HalfedgeHandle&   hh = this->halfedge_handle(_fh);
+			const HalfedgeHandle& p_hh = this->prev_halfedge_handle(hh);
+			const HalfedgeHandle& n_hh = this->next_halfedge_handle(hh);
 
-			const Coord& cd0 = coord( vertex_handle( hh) );
-			const Coord& cd1 = coord( vertex_handle(p_hh) );
-			const Coord& cd2 = coord( vertex_handle(n_hh) );
+			const Coord& cd0 = this->coord( this->vertex_handle( hh) );
+			const Coord& cd1 = this->coord( this->vertex_handle(p_hh) );
+			const Coord& cd2 = this->coord( this->vertex_handle(n_hh) );
 
 			//return ((cd1-cd0)%(cd2-cd1)).normalize();
 			return ((cd2-cd1)%(cd1-cd0)).normalize();//be careful
@@ -2007,13 +2011,13 @@ namespace MeshN {
 	void ExKernelT<ExItems>::update_facet_normals(void) {
 
 		set_isNormal(true);
-		FacetIterator fi = facet_begin();
+		FacetIterator fi = Kernel::facet_begin();
 
-		for ( ; fi!=facet_end(); ++fi) {
+		for ( ; fi!=Kernel::facet_end(); ++fi) {
 			if (fi->status_.is_deleted()) continue;
 
 			assert(fi->halfedge_handle_.is_valid());
-			fi->normal_ = calc_normal( facet_handle(fi->halfedge_handle_) );
+			fi->normal_ = calc_normal( this->facet_handle(fi->halfedge_handle_) );
 			fi->oriNormal_ = fi->normal_;
 		}
 	}
@@ -2024,8 +2028,8 @@ namespace MeshN {
 	typename ExKernelT<ExItems>::Normal
 		ExKernelT<ExItems>::normal(const VertexHandle& _vh) {
 			assert( _vh.is_valid() );
-			assert( _vh.idx() < vertex_size() );
-			return vertex_ref(_vh).normal_;
+			assert( _vh.idx() < Kernel::vertex_size() );
+			return this->vertex_ref(_vh).normal_;
 	}
 
 
@@ -2034,17 +2038,17 @@ namespace MeshN {
 	typename ExKernelT<ExItems>::Normal
 		ExKernelT<ExItems>::calc_normal(const VertexHandle& _vh) {
 			assert( _vh.is_valid());
-			assert( _vh.idx() < vertex_size() );
+			assert( _vh.idx() < Kernel::vertex_size() );
 
 			Normal          norm;
-			HalfedgeHandle& hh = halfedge_handle(_vh);
+			HalfedgeHandle hh = this->halfedge_handle(_vh);
 			HalfedgeHandle  cs (hh);
 			do {
-				FacetHandle& fh = facet_handle(cs);
+				FacetHandle fh = this->facet_handle(cs);
 				if (fh.is_valid()) 
 					norm  += normal(fh);
 
-				cs = cw_rotated(cs);
+				cs = this->cw_rotated(cs);
 			} while ( cs != hh );
 
 			return norm.normalize();
@@ -2054,13 +2058,13 @@ namespace MeshN {
 	///////////////////////////////////////////////////////////////////////////////
 	template <class ExItems> 
 	void ExKernelT<ExItems>::update_vertex_normals(void) {
-		VertexIterator vi = vertex_begin();
+		VertexIterator vi = Kernel::vertex_begin();
 
-		for ( ; vi!=vertex_end(); ++vi) {
+		for ( ; vi!=Kernel::vertex_end(); ++vi) {
 			if (vi->status_.is_deleted()) continue;
 
 			assert(vi->halfedge_handle_.is_valid());
-			vi->normal_ = calc_normal( vertex_handle(vi->halfedge_handle_) );
+			vi->normal_ = calc_normal( this->vertex_handle(vi->halfedge_handle_) );
 			//std::cout<<vi->normal_<<std::endl;
 		}
 	}
@@ -2072,24 +2076,24 @@ namespace MeshN {
 		ExKernelT<ExItems>::calc_normal_max(const VertexHandle& _vh){
 
 			assert(_vh.is_valid() );
-			assert(_vh.idx() < vertex_size() );
+			assert(_vh.idx() < Kernel::vertex_size() );
 
-			HalfedgeHandle& hh = halfedge_handle(_vh);
-			Coord& vc = vertex_ref(_vh).coord_;
+			HalfedgeHandle hh = this->halfedge_handle(_vh);
+			Coord &vc = this->vertex_ref(_vh).coord_;
 			Normal n(0,0,0);
 			HalfedgeHandle css(hh);
 			do{
-				FacetHandle& fh = facet_handle(css);
+				FacetHandle fh = this->facet_handle(css);
 				if(fh.is_valid() ){
 
-					HalfedgeHandle& nexhh = next_halfedge_handle(css);
-					HalfedgeHandle& prehh = prev_halfedge_handle(css);
+					HalfedgeHandle nexhh = this->next_halfedge_handle(css);
+					HalfedgeHandle prehh = this->prev_halfedge_handle(css);
 
-					VertexHandle& nvh = vertex_handle(nexhh);
-					VertexHandle& prevh = vertex_handle(prehh);
+					VertexHandle nvh = this->vertex_handle(nexhh);
+					VertexHandle prevh = this->vertex_handle(prehh);
 
-					Coord& nvc = vertex_ref(nvh).coord_;
-					Coord& prevc = vertex_ref(prevh).coord_;
+					Coord &nvc = this->vertex_ref(nvh).coord_;
+					Coord &prevc = this->vertex_ref(prevh).coord_;
 
 					Coord vec1 = vc - nvc;
 					Coord vec2 = vc - prevc;
@@ -2097,12 +2101,12 @@ namespace MeshN {
 
 					float weight = vec12cross.length() / (vec1.sqLength() * vec2.sqLength() );
 
-					n += facet_ref(fh).normal_ * weight;//---------------------------------------×¢Òâ
+					n += this->facet_ref(fh).normal_ * weight;//---------------------------------------×¢Òâ
 					//n += calc_normal(fh);//---------------------------------×¢Òâ
 
 				}//if
 
-				css = cw_rotated(css);
+				css = this->cw_rotated(css);
 			}while(css != hh);
 
 			n.normalize();
@@ -2115,14 +2119,14 @@ namespace MeshN {
 	template <class ExItems> 
 	void ExKernelT<ExItems>::update_vertex_normals_max(void){
 
-		VertexIterator vi = vertex_begin();
+		VertexIterator vi = Kernel::vertex_begin();
 
-		for ( ; vi!=vertex_end(); ++vi) {
+		for ( ; vi!=Kernel::vertex_end(); ++vi) {
 			if (vi->status_.is_deleted() ) continue;
 
 			assert(vi->halfedge_handle_.is_valid());
-			//vi->normal_ = calc_normal( vertex_handle(vi->halfedge_handle_));
-			vi->normal_ = calc_normal_max( vertex_handle(vi->halfedge_handle_) );
+			//vi->normal_ = calc_normal( this->vertex_handle(vi->halfedge_handle_));
+			vi->normal_ = calc_normal_max( this->vertex_handle(vi->halfedge_handle_) );
 			vi->oriNormal_ = vi->normal_; //lzhu 
 			//std::cout<<vi->normal_<<std::endl;
 		}
@@ -2132,20 +2136,20 @@ namespace MeshN {
 	void ExKernelT<ExItems>::update_normals(void) {
 		update_facet_normals();
 
-		VertexIterator vi = vertex_begin();
-		for ( ; vi!=vertex_end(); ++vi) {
+		VertexIterator vi = Kernel::vertex_begin();
+		for ( ; vi!=Kernel::vertex_end(); ++vi) {
 			if (vi->status_.is_deleted()) continue;
 
 			assert(vi->halfedge_handle_.is_valid());
 
 			HalfedgeHandle& hh = vi->halfedge_handle_;
-			VertexHandle&   vh = vertex_handle(hh);
+			VertexHandle&   vh = this->vertex_handle(hh);
 			HalfedgeHandle  cs (hh);
 			Normal          norm;
 			do {
-				const FacetHandle& fh = facet_handle(cs);
+				const FacetHandle& fh = this->facet_handle(cs);
 				if (fh.is_valid())  
-					norm +=  facet_ref(fh).normal_;
+					norm +=  this->facet_ref(fh).normal_;
 				cs = cw_rotated( cs );
 			} while ( cs != hh ); 
 
@@ -2162,10 +2166,10 @@ namespace MeshN {
 		float global_max_edge_length_ = 0;
 		float averagedlength = 0.0;
 
-		EdgeIterator eit = edge_begin();
-		for ( ; eit!=edge_end(); ++eit ) {
-			Vertex& v0 = vertex_ref( eit->halfedges_[0].vertex_handle_ );
-			Vertex& v1 = vertex_ref( eit->halfedges_[1].vertex_handle_ );
+		EdgeIterator eit = Kernel::edge_begin();
+		for ( ; eit!=Kernel::edge_end(); ++eit ) {
+			Vertex& v0 = this->vertex_ref( eit->halfedges_[0].vertex_handle_ );
+			Vertex& v1 = this->vertex_ref( eit->halfedges_[1].vertex_handle_ );
 
 			eit->length_ = (v0.coord_ - v1.coord_).norm();
 			//std::cout<<eit->length_<<"\n";
@@ -2175,25 +2179,25 @@ namespace MeshN {
 				global_max_edge_length_ = eit->length_; 
 		} 
 
-		averagedlength /= edge_size();
-		set_average_edge_length(averagedlength);
+		averagedlength /= Kernel::edge_size();
+		Kernel::set_average_edge_length(averagedlength);
 	}
 	/////////////////////////////////////////////////////////////////////////
 	template<class ExItems>
 	typename ExKernelT<ExItems>::Coord
 		ExKernelT<ExItems>::calc_centroid(const FacetHandle& _fh){
 
-			HalfedgeHandle& hh = halfedge_handle(_fh);
-			HalfedgeHandle& n_hh = next_halfedge_handle(hh);
-			HalfedgeHandle& pre_hh = prev_halfedge_handle(hh);
+			HalfedgeHandle hh = this->halfedge_handle(_fh);
+			HalfedgeHandle n_hh = this->next_halfedge_handle(hh);
+			HalfedgeHandle pre_hh = this->prev_halfedge_handle(hh);
 
-			VertexHandle& vh = vertex_handle(hh);
-			VertexHandle& n_vh = vertex_handle(n_hh);
-			VertexHandle& pre_vh = vertex_handle(pre_hh);
+			VertexHandle vh = this->vertex_handle(hh);
+			VertexHandle n_vh = this->vertex_handle(n_hh);
+			VertexHandle pre_vh = this->vertex_handle(pre_hh);
 
-			return Coord(coord(vh) +
-				coord(n_vh)+
-				coord(pre_vh) )/3.0;
+			return Coord(this->coord(vh) +
+				this->coord(n_vh)+
+				this->coord(pre_vh) )/3.0;
 
 	}
 	
@@ -2204,19 +2208,19 @@ namespace MeshN {
 	{
 			double sigmaC = 0.0;
 			int num = 0;
-			FacetIterator fi = facet_begin();
-			for (fi; fi != facet_end(); fi++)
+			FacetIterator fi = Kernel::facet_begin();
+			for (fi; fi != Kernel::facet_end(); fi++)
 			{
 				HalfedgeHandle& hh = fi->halfedge_handle_;
-				FacetHandle&    fh = facet_handle(hh);
-				Coord& ci = calc_centroid(fh);
+				FacetHandle    fh = this->facet_handle(hh);
+				Coord ci = this->calc_centroid(fh);
 
 				FacetHandles    NeighborFacets;
 				getNeighborFaceRing(fh, 2, NeighborFacets);
 				for (int j = 0; j < NeighborFacets.size(); j++)
 				{
 					FacetHandle& Nfh = NeighborFacets[j];
-					Coord& cj = calc_centroid(Nfh);
+					Coord cj = this->calc_centroid(Nfh);
 					sigmaC += (ci - cj).length();
 					num++;
 				}
@@ -2234,11 +2238,11 @@ namespace MeshN {
 			double MaxSigmaS = param;
 
 			std::vector<double> facetareas;
-			FacetIterator fi(facet_begin());
-			for (; fi < facet_end(); fi++)
+			FacetIterator fi(Kernel::facet_begin());
+			for (; fi < Kernel::facet_end(); fi++)
 			{
 				HalfedgeHandle& hh = fi->halfedge_handle_;
-				FacetHandle&    fh = facet_handle(hh);
+				FacetHandle    fh = this->facet_handle(hh);
 				facetareas.push_back(calc_facet_area(fh));
 			}
 
@@ -2248,21 +2252,21 @@ namespace MeshN {
 			{
 				std::vector<Normal> new_facet_normals;
 
-				for (fi = facet_begin(); fi < facet_end(); fi++)
+				for (fi = Kernel::facet_begin(); fi < Kernel::facet_end(); fi++)
 				{
 					HalfedgeHandle& hh = fi->halfedge_handle_;
-					FacetHandle&    fh = facet_handle(hh);
+					FacetHandle    fh = this->facet_handle(hh);
 					FacetHandles    NeighorFacets;
 					getNeighborFaceRing(fh, 2, NeighorFacets);
 
-					Coord& center_fh = calc_centroid(fh);
-					Normal& nf = normal(fh);
+					Coord center_fh =this->calc_centroid(fh);
+					Normal nf = normal(fh);
 					Normal  trans(0, 0, 0);
 					for (int j = 0; j<NeighorFacets.size(); j++)
 					{
 						FacetHandle& Nfh = NeighorFacets[j];
-						Coord& Ncenter = calc_centroid(Nfh);
-						Normal& NorN = normal(Nfh);
+						Coord Ncenter =this->calc_centroid(Nfh);
+						Normal NorN = normal(Nfh);
 
 						double Wc, Ws;
 						Wc = exp(-(center_fh - Ncenter).sqNorm() / (2 * SigmaC*SigmaC));
@@ -2281,18 +2285,18 @@ namespace MeshN {
 					}
 				}
 
-				for (fi = facet_begin(); fi<facet_end(); fi++)
+				for (fi = Kernel::facet_begin(); fi<Kernel::facet_end(); fi++)
 				{
-					FacetHandle fhh = facet_handle(fi->halfedge_handle_);
+					FacetHandle fhh = this->facet_handle(fi->halfedge_handle_);
 					fi->normal_ = new_facet_normals[fhh.idx()];
 				}
 			}
 
 			//-------calculate vertex normal-------
-			VertexIterator vit(vertex_begin());
-			for (; vit < vertex_end(); vit++)
+			VertexIterator vit(Kernel::vertex_begin());
+			for (; vit < Kernel::vertex_end(); vit++)
 			{
-				Normal n = calc_normal(vertex_handle(vit->halfedge_handle_));
+				Normal n = calc_normal(this->vertex_handle(vit->halfedge_handle_));
 				bilateralGuidanceNormal.push_back(n);
 			}
 		}
@@ -2312,23 +2316,23 @@ namespace MeshN {
 				verOldNum = _fhs.size();
 				for (int i = verOldNum1; i<verNewNum; i++){
 					FacetHandle& fh = _fhs[i];
-					HalfedgeHandle& hh = halfedge_handle(fh);
-					HalfedgeHandle& pre_hh = prev_halfedge_handle(hh);
-					HalfedgeHandle& nex_hh = next_halfedge_handle(hh);
+					HalfedgeHandle hh = this->halfedge_handle(fh);
+					HalfedgeHandle pre_hh = this->prev_halfedge_handle(hh);
+					HalfedgeHandle nex_hh = this->next_halfedge_handle(hh);
 
 					VertexHandle  vhs[3];
-					vhs[0] = vertex_handle(hh);
-					vhs[1] = vertex_handle(pre_hh);
-					vhs[2] = vertex_handle(nex_hh);
+					vhs[0] = this->vertex_handle(hh);
+					vhs[1] = this->vertex_handle(pre_hh);
+					vhs[2] = this->vertex_handle(nex_hh);
 
 					for (int i = 0; i<3; i++){
 
-						HalfedgeHandle& hhv = halfedge_handle(vhs[i]);
+						HalfedgeHandle hhv = this->halfedge_handle(vhs[i]);
 						HalfedgeHandle cursor(hhv);
 
 						do{
 
-							FacetHandle fh = facet_handle(cursor);
+							FacetHandle fh = this->facet_handle(cursor);
 							if (fh.is_valid() && fh != _fh){
 								int j = 0;
 								for (; j< _fhs.size(); j++){
@@ -2339,7 +2343,7 @@ namespace MeshN {
 								if (j >= _fhs.size()) _fhs.push_back(fh);
 							}
 
-							cursor = cw_rotated(cursor);
+							cursor = this->cw_rotated(cursor);
 
 						} while (hhv != cursor);//end for do while
 					}//end for
@@ -2355,26 +2359,41 @@ namespace MeshN {
 	bool
 		ExKernelT<ExItems>::_initialization(){
 
-			patchNum = facet_number();
-			vertexNum = vertex_number();
+			Kernel::patchnum = Kernel::facet_number();
+			Kernel::vertexNum = Kernel::vertex_number();
 
-			if ((patchNum == 0) || (vertexNum == 0)) return false;
+			if ((Kernel::patchnum == 0) || (Kernel::vertexNum == 0)) return false;
 
-			matA = new CSpMatrix(patchNum*FACENUM, vertexNum);
-			matATA = new CSpMatrix(vertexNum, vertexNum);
+            Kernel::matA.resize(Kernel::patchnum*FACENUM, Kernel::vertexNum);
+            Kernel::matATA.resize(Kernel::vertexNum, Kernel::vertexNum);
+			//Kernel::matA = new CSpMatrix(Kernel::patchnum*FACENUM, Kernel::vertexNum);
+			//Kernel::matATA = new CSpMatrix(Kernel::vertexNum, Kernel::vertexNum);
 
-			vectorRz = new double[patchNum*FACENUM];
-			vectorXz = new double[vertexNum];
-			vectorBz = new double[vertexNum];
+			Kernel::vectorRz = Eigen::VectorXd(Kernel::patchnum*FACENUM);
+			Kernel::vectorXz = Eigen::VectorXd(Kernel::vertexNum);
+			Kernel::vectorBz = Eigen::VectorXd(Kernel::vertexNum);
 
-			vectorRy = new double[patchNum*FACENUM];
-			vectorXy = new double[vertexNum];
-			vectorBy = new double[vertexNum];
+			Kernel::vectorRy = Eigen::VectorXd(Kernel::patchnum*FACENUM);
+			Kernel::vectorXy = Eigen::VectorXd(Kernel::vertexNum);
+			Kernel::vectorBy = Eigen::VectorXd(Kernel::vertexNum);
 
-			vectorRx = new double[patchNum*FACENUM];
-			vectorXx = new double[vertexNum];
-			vectorBx = new double[vertexNum];
+			Kernel::vectorRx = Eigen::VectorXd(Kernel::patchnum*FACENUM);
+			Kernel::vectorXx = Eigen::VectorXd(Kernel::vertexNum);
+			Kernel::vectorBx = Eigen::VectorXd(Kernel::vertexNum);
 
+
+			/*Kernel::vectorRz = new double[Kernel::patchnum*FACENUM];
+			Kernel::vectorXz = new double[Kernel::vertexNum];
+			Kernel::vectorBz = new double[Kernel::vertexNum];
+
+			Kernel::vectorRy = new double[Kernel::patchnum*FACENUM];
+			Kernel::vectorXy = new double[Kernel::vertexNum];
+			Kernel::vectorBy = new double[Kernel::vertexNum];
+
+			Kernel::vectorRx = new double[Kernel::patchnum*FACENUM];
+			Kernel::vectorXx = new double[Kernel::vertexNum];
+			Kernel::vectorBx = new double[Kernel::vertexNum];
+*/
 			return true;
 		}
 	//////////////////////////////void _fillMatrixA//////////////////////////////
@@ -2384,20 +2403,20 @@ namespace MeshN {
 			int patchId = 0;
 
 
-			FacetIterator fi(facet_begin());
-			for (; fi<facet_end(); fi++, patchId++){
+			FacetIterator fi(Kernel::facet_begin());
+			for (; fi<Kernel::facet_end(); fi++, patchId++){
 
 
 				HalfedgeHandle& hh = fi->halfedge_handle_;
-				FacetHandle&    fh = facet_handle(hh);
-				VertexHandle&   vh = vertex_handle(hh);
+				FacetHandle&    fh = this->facet_handle(hh);
+				VertexHandle&   vh = this->vertex_handle(hh);
 
 				int vertexIdArray[FACENUM];
 				for (int i = 0; i<FACENUM; i++) {
 					vertexIdArray[i] = vh.idx();
 
 					hh = next_halfedge_handle(hh);
-					vh = vertex_handle(hh);
+					vh = this->vertex_handle(hh);
 				}
 
 				//double coeff1 = (-1.0/((double)FACENUM));
@@ -2407,46 +2426,49 @@ namespace MeshN {
 					if (vertexIdArray[i]<0) continue;
 					for (int j = 0; j<FACENUM; j++){
 						if (i == j){
-							matA->Set(patchId*FACENUM + j, vertexIdArray[i], 1);//coeff2);
-							//matA->Get(patchId*FACENUM+j, vertexIdArray[i], val);
+                            Kernel::matA.coeffRef(patchId*FACENUM + j, vertexIdArray[i]) = 1;
+                            //Kernel::matA->Set(patchId*FACENUM + j, vertexIdArray[i], 1);//coeff2);
+							//Kernel::matA->Get(patchId*FACENUM+j, vertexIdArray[i], val);
 							//std::cout<<val<<" ";
 						}
 						/*else{
-						matA->Set(patchId*FACENUM+j, vertexIdArray[i],coeff1);
+						Kernel::matA->Set(patchId*FACENUM+j, vertexIdArray[i],coeff1);
 						}*/
 
 					}
 				}
 			}
-			CSpMatrix::MulATA(*matA, *matATA);
+            Kernel::matATA = Kernel::matA.transpose() * Kernel::matA;
+			//CSpMatrix::MulATA(*Kernel::matA, *Kernel::matATA);
 		}
 	/////////////////////////////_factorizeMatrixA///////////////////////////////////////////////
 	template<class ExItems>
 	void
 		ExKernelT<ExItems>::_factorizeMatrixA(){
-			if (!LinearSolver::FactorA(*matATA, factorized)) printf("Cannot factorize Matrix!\n");
-
+			//if (!LinearSolver::FactorA(*Kernel::matATA, Kernel::factorized)) printf("Cannot factorize Matrix!\n");
+            Kernel::factorized.analyzePattern(Kernel::matATA); 
+            Kernel::factorized.factorize(Kernel::matATA);
 		}
 	/////////////////////////projection///////////////////////////////////////////////
 	template<class ExItems>
 	void
 		ExKernelT<ExItems>::_projection(){//////////////////////projected face
-			int number = facet_number();
+			int number = Kernel::facet_number();
 
 			int FaceId = 0;
 			int n = 0;
 
-			FacetIterator fi(facet_begin());
-			for (; fi<facet_end(); fi++, FaceId++){
+			FacetIterator fi(Kernel::facet_begin());
+			for (; fi<Kernel::facet_end(); fi++, FaceId++){
 
 
 				HalfedgeHandle& hh = fi->halfedge_handle_;
-				FacetHandle&    fh = facet_handle(hh);
-				VertexHandle&   vh = vertex_handle(hh);
-				Coord& ord = vertex_ref(vh).coord_;
+				FacetHandle&    fh = this->facet_handle(hh);
+				VertexHandle&   vh = this->vertex_handle(hh);
+				Coord& ord = this->vertex_ref(vh).coord_;
 
 				Normal& norn = normal(fh);
-				Coord& before_center = calc_centroid(fh);
+				Coord before_center =this-> calc_centroid(fh);
 
 
 				double pp[3], center[3], Overshoot_valueX[3], Overshoot_valueY[3], Overshoot_valueZ[3], p[3];///////////A surface mapping point pp[i]
@@ -2458,10 +2480,10 @@ namespace MeshN {
 					len[i] = 0.0;
 				}
 
-				//std::vector<Coord> coordinate,original_coordinate; 
+				//std::vector<Coord> this->coordinate,original_this->coordinate; 
 
 				for (int i = 0; i<FACENUM; i++){
-					Coord& varry = vertex_ref(vh).coord_;
+					Coord& varry = this->vertex_ref(vh).coord_;
 
 
 					pp[0] = varry.x;
@@ -2478,16 +2500,16 @@ namespace MeshN {
 					p[2] = (-(pp[0] - before_center[0])*norn.x*norn.z - (pp[1] - before_center[1])*norn.y*norn.z +
 						pp[2] * (norn.x*norn.x + norn.y*norn.y) + before_center[2] * norn.z*norn.z);
 
-					//coordinate.push_back(Coord(p[0],p[1],p[2]));
-					//original_coordinate.push_back(varry);
+					//this->coordinate.push_back(Coord(p[0],p[1],p[2]));
+					//original_this->coordinate.push_back(varry);
 					Coord coordinate = Coord(p[0], p[1], p[2]);
-					len[i] = (varry - coordinate).tLength();
+					len[i] = (varry - this->coordinate).tLength();
 
 					Overshoot_valueX[i] = p[0]; Overshoot_valueY[i] = p[1]; Overshoot_valueZ[i] = p[2];
 					center[0] += p[0]; center[1] += p[1]; center[2] += p[2];
 
 					hh = next_halfedge_handle(hh);
-					vh = vertex_handle(hh);
+					vh = this->vertex_handle(hh);
 				}
 
 				center[0] /= (float)FACENUM;
@@ -2496,45 +2518,52 @@ namespace MeshN {
 
 
 				for (int i = 0; i<FACENUM; i++){
-					vectorRx[FaceId*FACENUM + i] = Overshoot_valueX[i];//-center[0];
-					vectorRy[FaceId*FACENUM + i] = Overshoot_valueY[i];//-center[1];
-					vectorRz[FaceId*FACENUM + i] = Overshoot_valueZ[i];//-center[2];
+					Kernel::vectorRx[FaceId*FACENUM + i] = Overshoot_valueX[i];//-center[0];
+					Kernel::vectorRy[FaceId*FACENUM + i] = Overshoot_valueY[i];//-center[1];
+					Kernel::vectorRz[FaceId*FACENUM + i] = Overshoot_valueZ[i];//-center[2];
 				}
 
 			}
-			CSpMatrix::MulATB(*matA, vectorRz, vectorBz);
-			CSpMatrix::MulATB(*matA, vectorRy, vectorBy);
-			CSpMatrix::MulATB(*matA, vectorRx, vectorBx);
+
+            Kernel::vectorBz = Kernel::matA.transpose() * Kernel::vectorRz;
+            Kernel::vectorBy = Kernel::matA.transpose() * Kernel::vectorRy;
+            Kernel::vectorBx = Kernel::matA.transpose() * Kernel::vectorRx;
+    //		CSpMatrix::MulATB(*Kernel::matA, Kernel::vectorRz, Kernel::vectorBz);
+    //		CSpMatrix::MulATB(*Kernel::matA, Kernel::vectorRy, Kernel::vectorBy);
+    //		CSpMatrix::MulATB(*Kernel::matA, Kernel::vectorRx, Kernel::vectorBx);
 		}
 	///////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////_backSubstitution//////////////////////////////////////
 	template<class ExItems>
 	void
 		ExKernelT<ExItems>::_backSubstitution(){
-			if (!LinearSolver::SolveX(factorized, vectorXz, vectorBz)) printf("Cannot solve!\n");
-			if (!LinearSolver::SolveX(factorized, vectorXy, vectorBy)) printf("Cannot solve!\n");
-			if (!LinearSolver::SolveX(factorized, vectorXx, vectorBx)) printf("Cannot solve!\n");
-		}
+            Kernel::vectorXz = Kernel::factorized.solve(Kernel::vectorBz);
+            Kernel::vectorXy = Kernel::factorized.solve(Kernel::vectorBy);
+            Kernel::vectorXx = Kernel::factorized.solve(Kernel::vectorBx);
+			//if (!LinearSolver::SolveX(Kernel::factorized, Kernel::vectorXz, Kernel::vectorBz)) printf("Cannot solve!\n");
+			//if (!LinearSolver::SolveX(Kernel::factorized, Kernel::vectorXy, Kernel::vectorBy)) printf("Cannot solve!\n");
+			//if (!LinearSolver::SolveX(Kernel::factorized, Kernel::vectorXx, Kernel::vectorBx)) printf("Cannot solve!\n");
+    }
 
 	/////////////////////////////_updateResult////////////////////////////////////////////////////////////
 	template<class ExItems>
 	void
 		ExKernelT<ExItems>::_updateResult(){
 
-			FacetIterator fi(facet_begin());
-			for (; fi<facet_end(); fi++){
+			FacetIterator fi(Kernel::facet_begin());
+			for (; fi<Kernel::facet_end(); fi++){
 				HalfedgeHandle& hh = fi->halfedge_handle_;
-				FacetHandle&    fh = facet_handle(hh);
-				VertexHandle&   vh = vertex_handle(hh);
+				FacetHandle&    fh = this->facet_handle(hh);
+				VertexHandle&   vh = this->vertex_handle(hh);
 
 				for (int i = 0; i<FACENUM; i++){
 
-					vertex_ref(vh).coord_.x = vectorXx[vh.idx()];
-					vertex_ref(vh).coord_.y = vectorXy[vh.idx()];
-					vertex_ref(vh).coord_.z = vectorXz[vh.idx()];
+					this->vertex_ref(vh).coord_.x = Kernel::vectorXx[vh.idx()];
+					this->vertex_ref(vh).coord_.y = Kernel::vectorXy[vh.idx()];
+					this->vertex_ref(vh).coord_.z = Kernel::vectorXz[vh.idx()];
 
 					hh = next_halfedge_handle(hh);
-					vh = vertex_handle(hh);
+					vh = this->vertex_handle(hh);
 
 				}
 
@@ -2549,7 +2578,7 @@ namespace MeshN {
 		ExKernelT<ExItems>::DoComputing(int iVertexItr, float fMaxSigma, float fMaxSigmaC, int iFacetItr){
 			///////////DoComputing Rolling Guidance Filter and Surface-from-Gradients
 
-			adjustFaceNormal_RGF(fMaxSigma, fMaxSigmaC, iFacetItr);
+			Kernel::adjustFaceNormal_RGF(fMaxSigma, fMaxSigmaC, iFacetItr);
 			globalVertexUpdating(iVertexItr);
 		}
 	///////////////////////////////////////////////////////////////
@@ -2566,10 +2595,10 @@ namespace MeshN {
 				_updateResult();
 			}
 
-			if (factorized){
-				LinearSolver::DeleteF(factorized);
-				factorized = NULL;
-			}
+			//if (Kernel::factorized){
+			//	LinearSolver::DeleteF(Kernel::factorized);
+			//	Kernel::factorized = NULL;
+			//}
 		}
 
 } /// namespace

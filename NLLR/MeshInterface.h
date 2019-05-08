@@ -1,14 +1,16 @@
 #ifndef __WMQ_INTERFACE_H__
 #define __WMQ_INTERFACE_H__
 
+#ifdef _MSC_VER
 #if _MSC_VER > 1000
 #pragma once
 #endif // _MSC_VER > 1000
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 #include "mesh/extension/ExItems.h"
-#include "mesh\extension/ExKernelT.cpp" 
-#include "mesh\read_write/read_write.cpp" 
+#include "mesh/extension/ExKernelT.cpp" 
+#include "mesh/read_write/read_write.cpp" 
 #include <string>
 #include <ctime>
 

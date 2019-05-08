@@ -9,11 +9,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 #include <iostream>
 #include <vector>
-#include <assert.h> 
 #include "Vector3T.h" 
-
-#include "..\LinearSolver\linearsolver.h"
-
+#include <Eigen/Sparse>
 namespace MeshN {
 
 
@@ -24,26 +21,26 @@ namespace MeshN {
 	class KernelT {
 	public: // definitions of types 
 		// definition of this class
-		typedef typename KernelT<Items>         This;
+		using This =   class KernelT<Items>;
 
 		// definitions of non-topologic types
-		typedef typename Items::Scalar          Scalar;//ÊýÁ¿¡¢±êÁ¿
-		typedef typename Items::Coord           Coord;//×ø±ê
-		typedef typename Items::Normal          Normal;//ÏòÁ¿
-		typedef typename Items::Color           Color;//ÑÕÉ«
-		typedef typename Items::TexCoord        TexCoord;//ÎÆÀí×ø±ê
+		typedef typename Items::Scalar          Scalar;//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		typedef typename Items::Coord           Coord;//ï¿½ï¿½ï¿½ï¿½
+		typedef typename Items::Normal          Normal;//ï¿½ï¿½ï¿½ï¿½
+		typedef typename Items::Color           Color;//ï¿½ï¿½É«
+		typedef typename Items::TexCoord        TexCoord;//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 		// definitions of topologic items
-		typedef typename Items::Halfedge        Halfedge;//°ë±ß
-		typedef typename Items::Vertex          Vertex;//¶¥µã
-		typedef typename Items::Edge            Edge;//Õû±ß
-		typedef typename Items::Facet           Facet;//Ãæ
+		typedef typename Items::Halfedge        Halfedge;//ï¿½ï¿½ï¿½
+		typedef typename Items::Vertex          Vertex;//ï¿½ï¿½ï¿½ï¿½
+		typedef typename Items::Edge            Edge;//ï¿½ï¿½ï¿½ï¿½
+		typedef typename Items::Facet           Facet;//ï¿½ï¿½
 
 		// definitions of various handles
-		typedef typename Items::HalfedgeHandle  HalfedgeHandle;//°ë±ßµÄ¾ä±ú£¬Ïàµ±ÓÚÖ¸Õë
-		typedef typename Items::VertexHandle    VertexHandle;//¶¥µãµÄ¾ä±ú
-		typedef typename Items::EdgeHandle      EdgeHandle;//Õû±ßµÄ¾ä±ú
-		typedef typename Items::FacetHandle     FacetHandle;//ÃæµÄ¾ä±ú
+		typedef typename Items::HalfedgeHandle  HalfedgeHandle;//ï¿½ï¿½ßµÄ¾ï¿½ï¿½ï¿½ï¿½ï¿½àµ±ï¿½ï¿½Ö¸ï¿½ï¿½
+		typedef typename Items::VertexHandle    VertexHandle;//ï¿½ï¿½ï¿½ï¿½Ä¾ï¿½ï¿½
+		typedef typename Items::EdgeHandle      EdgeHandle;//ï¿½ï¿½ï¿½ßµÄ¾ï¿½ï¿½
+		typedef typename Items::FacetHandle     FacetHandle;//ï¿½ï¿½Ä¾ï¿½ï¿½
 
 		// handle arrays
 		typedef typename std::vector<VertexHandle>   VertexHandles;
@@ -56,7 +53,7 @@ namespace MeshN {
 		typedef typename std::vector<Facet>::iterator   FacetIterator;
 		// constant iterator types
 		typedef typename std::vector<Vertex>::const_iterator  ConstVertexIterator;
-		typedef typename typename std::vector<Edge>::const_iterator    ConstEdgeIterator;
+		typedef typename  std::vector<Edge>::const_iterator    ConstEdgeIterator;
 		typedef typename std::vector<Facet>::const_iterator   ConstFacetIterator; 
 
 
@@ -107,18 +104,18 @@ namespace MeshN {
 		//KernelT() {}
 
 		~KernelT() { clear(); }
-		KernelT() : matA(NULL)
-			, matATA(NULL)
-			, vectorRz(NULL)
-			, vectorBz(NULL)
-			, vectorXz(NULL)
-			, factorized(NULL)
-			, vectorRy(NULL)
-			, vectorRx(NULL)
-			, vectorXy(NULL)
-			, vectorBy(NULL)
-			, vectorXx(NULL)
-			, vectorBx(NULL)
+		KernelT() : matA(0, 0)
+			, matATA(0, 0)
+			, vectorRz()
+			, vectorBz()
+			, vectorXz()
+			//, factorized
+			, vectorRy()
+			, vectorRx()
+			, vectorXy()
+			, vectorBy()
+			, vectorXx()
+			, vectorBx()
 		{}
 		// reset this class
 		inline void clear(void);
@@ -187,7 +184,7 @@ namespace MeshN {
 
 
 	public:
-		inline Scalar get_average_edge_length()const{//È¡Æ½¾ù±ß³¤
+		inline Scalar get_average_edge_length()const{//È¡Æ½ï¿½ï¿½ï¿½ß³ï¿½
 
 			return averaged_edge_length_;
 		}
@@ -199,13 +196,13 @@ namespace MeshN {
 		}
 
 	public:
-		inline void set_average_edge_length(Scalar _edgelength){averaged_edge_length_ = _edgelength;}//ÉèÖÃÆ½¾ù±ß³¤
-		inline void setMeshBox(const Coord& _min, const Coord& _max){//ÉèÖÃÍø¸ñ°üÎ§Çò
+		inline void set_average_edge_length(Scalar _edgelength){averaged_edge_length_ = _edgelength;}//ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½ï¿½ß³ï¿½
+		inline void setMeshBox(const Coord& _min, const Coord& _max){//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î§ï¿½ï¿½
 			max_ = _max;
 			min_ = _min;
 		}
 
-		inline bool calcMeshBox();//¼ÆËãÍø¸ñ°üÎ§Çò
+		inline bool calcMeshBox();//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î§ï¿½ï¿½
 
 	public: // Data body  
 		std::vector<Vertex>  vertices_;
@@ -213,8 +210,8 @@ namespace MeshN {
 		std::vector<Facet>   facets_;
 
 	private:
-		Scalar averaged_edge_length_;//Æ½¾ù±ß³¤
-		Coord min_, max_;///°üÎ§Çò×îÐ¡×î´ó×ø±ê
+		Scalar averaged_edge_length_;//Æ½ï¿½ï¿½ï¿½ß³ï¿½
+		Coord min_, max_;///ï¿½ï¿½Î§ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 	
 
@@ -223,17 +220,18 @@ namespace MeshN {
 		std::vector<Edge> original_edges_;
 		std::vector<Facet> original_facets_;
 	 public:
-		 CSpMatrix* matA, *matATA;//input matrix A which is M X N (M>N) 
+		 Eigen::SparseMatrix<double> matA, matATA;//input matrix A which is M X N (M>N) 
+         
 		 // and its least square ATA which is N X N 
-		 double* vectorRz, *vectorBz, *vectorXz;        //vectorR: right hand side vector (M X 1)
+		 Eigen::VectorXd  vectorRz, vectorBz, vectorXz;        //vectorR: right hand side vector (M X 1)
 		 // vectorB: right hand side vector which equals to AT X vectorR (N X 1);
 		 // vectorX: unknown depth for all vertex which is N X 1
-		 void* factorized;// factorized matrix (for direct solver)
-
+		 Eigen::SparseLU<decltype(matA) >  factorized;// factorized matrix (for direct solver)
+        
 		 int patchNum, vertexNum; // total patch number and vertex number
 
-		 double* vectorRy, *vectorXy, *vectorBy;
-		 double* vectorRx, *vectorXx, *vectorBx;
+		 Eigen::VectorXd vectorRy, vectorXy, vectorBy;
+		 Eigen::VectorXd  vectorRx, vectorXx, vectorBx;
 	}; 
 
 

@@ -8,7 +8,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 #include "../core/KernelT.cpp" 
-#include "time.h"
+#include <ctime>
 #include <string>
 #include <fstream>
 
@@ -17,7 +17,6 @@
 #include <Eigen/Sparse>
 #include <Eigen/SparseQR>
 
-#include <linearsolver.h>
 
 using namespace Eigen;
 using namespace std;
@@ -28,8 +27,8 @@ namespace MeshN {
 	template <class ExItems>
 	class ExKernelT : public MeshN::KernelT<ExItems> {
 	public:  
-		typedef typename MeshN::KernelT<ExItems>       Kernel; 
-		typedef typename ExKernelT<ExItems>            This; 
+		typedef class MeshN::KernelT<ExItems>       Kernel;
+		typedef class ExKernelT<ExItems>            This;
 
 		typedef typename Kernel::Scalar            Scalar;
 		typedef typename Kernel::Coord             Coord;
@@ -85,11 +84,11 @@ namespace MeshN {
 		void update_edge_length(void);
 		void output_to_file();
 		void output_to_file(char* filename);
-		void getNeighborRing(VertexHandle& _vh, int _ring, std::vector<VertexHandle>& _vhs);//È¡¶¥µãµÄring »·µÄËùÓÐµã
-		void getNeighborVertices(VertexHandle& _vh, int _verticesNum, std::vector<VertexHandle>& NeighborVertices);
-		void getNeighborVertices_withRingIndex(VertexHandle& _vh, int _verticesNum, std::vector<VertexHandle>& NeighborVertices, std::vector<int>& ringIdx);
-		void getNeighborFaceN1(FacetHandle& _fh, std::vector<FacetHandle>& _fhs);//getting faces sharing edges with _fh
-		void getNeighborFaceN2(FacetHandle& _fh, std::vector<FacetHandle>& _fhs);//getting faces sharing common vertices with _fh
+		void getNeighborRing(const VertexHandle& _vh, int _ring, std::vector<VertexHandle>& _vhs);//È¡ï¿½ï¿½ï¿½ï¿½ï¿½ring ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½
+		void getNeighborVertices(const VertexHandle& _vh, int _verticesNum, std::vector<VertexHandle>& NeighborVertices);
+		void getNeighborVertices_withRingIndex(const VertexHandle& _vh, int _verticesNum, std::vector<VertexHandle>& NeighborVertices, std::vector<int>& ringIdx);
+		void getNeighborFaceN1(const FacetHandle& _fh, std::vector<FacetHandle>& _fhs);//getting faces sharing edges with _fh
+		void getNeighborFaceN2(const FacetHandle& _fh, std::vector<FacetHandle>& _fhs);//getting faces sharing common vertices with _fh
 
 		Coord calc_centroid(const FacetHandle& _fh);
 

@@ -18,7 +18,8 @@
 
 #include <iostream>
 #include <assert.h>
-#include <math.h> 
+#include <math.h>
+#include <cstring>
 
 #ifndef _PI
 #define _PI 3.1415926535897932384626433f
@@ -371,7 +372,7 @@ namespace MathN
 	///////////////////////////////////////////////////////////////////////////////
 #define PITOANG  0.0174532925  //
 	///////////////////////////////////////////////////////////////////////////////
-	template <typename T>   //Ò»¸öÏòÁ¿ÈÆ´ËÏòÁ¿Ðý×ª_angle½Ç¶È
+	template <typename T>   //Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×ª_angleï¿½Ç¶ï¿½
 	void Vector3T<T>::rotate(Vector& _vec, const T& _angle) {
 		T sinval = (T)sin(_angle*PITOANG);
 		T cosval = (T)cos(_angle*PITOANG);
@@ -387,16 +388,16 @@ namespace MathN
 
 	template <typename T> 
 	void Vector3T<T>::rotatePoint(Vector& _pnt, const T& _angle) {
-		T  k = x*_pnt.x + y*_pnt.y + z*_pnt.z;  //Á½¸öÏòÁ¿µÄµã»ý
+		T  k = x*_pnt.x + y*_pnt.y + z*_pnt.z;  //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Äµï¿½ï¿½
 
 		Vector  proj (k*x, k*y, k*z);  //Í¶Ó°
-		Vector  vect (_pnt - proj);    //Ðý×ªÖá
+		Vector  vect (_pnt - proj);    //ï¿½ï¿½×ªï¿½ï¿½
 		T       len = vect.length();   //!!
 
 		vect.normalize();          //!!
 		rotate(vect, _angle);
 
-		vect *= len;//»Ö¸´rµÄ³¤¶È  //!!
+		vect *= len;//ï¿½Ö¸ï¿½rï¿½Ä³ï¿½ï¿½ï¿½  //!!
 		_pnt  = proj + vect;
 	}
 
